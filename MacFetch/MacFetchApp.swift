@@ -130,7 +130,7 @@ struct MenuBarDownloadsView: View {
                     ProgressView(value: record.progress)
                         .progressViewStyle(.linear)
                         .tint(.accentColor)
-                        .frame(maxWidth: .infinity)
+                        .frame(width: 300)
                     HStack {
                         Text("\(Int(record.progress * 100))%")
                             .font(.caption)
@@ -157,7 +157,7 @@ struct MenuBarDownloadsView: View {
                     }
                 }
                 .padding(7)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(width: 320, alignment: .leading)
                 .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
             }
         }
