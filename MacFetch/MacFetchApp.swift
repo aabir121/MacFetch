@@ -29,7 +29,9 @@ import UniformTypeIdentifiers
         }.modelContainer(container)
         MenuBarExtra("MacFetch", systemImage: "arrow.down.circle") {
             MenuBarDownloadsView(manager: manager, openWindow: openWindow)
-        }.environmentObject(manager)
+        }
+        .menuBarExtraStyle(.window)
+        .environmentObject(manager)
         Settings { SettingsView() }
     }
 
@@ -101,6 +103,7 @@ struct MenuBarDownloadsView: View {
     }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
         Button("Open MacFetch") { NSApp.activate(ignoringOtherApps: true); openWindow(id: "main") }
         Divider()
 
@@ -110,20 +113,23 @@ struct MenuBarDownloadsView: View {
             Text("Active downloads (\(activeRecords.count))")
                 .font(.headline)
             ForEach(activeRecords) { record in
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Image(systemName: "arrow.down.circle.fill")
                             .foregroundStyle(.tint)
                         Text(record.fileName)
-                            .lineLimit(1)
+                            .lineLimit(2)
+                            .truncationMode(.middle)
+                            .fixedSize(horizontal: false, vertical: true)
                         Spacer()
                         Text(record.state.label)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     ProgressView(value: record.progress)
                         .progressViewStyle(.linear)
                         .tint(.accentColor)
-                        .frame(width: 260)
+                        .frame(maxWidth: .infinity)
                     HStack {
                         Text("\(Int(record.progress * 100))%")
                             .font(.caption)
@@ -149,7 +155,7 @@ struct MenuBarDownloadsView: View {
                         .help("Stop download")
                     }
                 }
-                .padding(9)
+                .padding(7)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
             }
@@ -161,5 +167,8 @@ struct MenuBarDownloadsView: View {
         Button("Open Downloads") { NSWorkspace.shared.open(ContentView.downloadsFolder) }
         Divider()
         Button("Quit MacFetch") { NSApp.terminate(nil) }
+        }
+    .frame(width: 340)
+    .padding(12)
     }
 }
