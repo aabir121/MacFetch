@@ -10,6 +10,9 @@ struct ContentView: View {
     @State private var filter = "All"
     @State private var showingAdd = false
     @State private var search = ""
+    @State private var typeFilter = "All types"
+    @State private var sortOption = "Newest first"
+    @State private var groupOption = "None"
     private let filters = ["All", "Downloading", "Queued", "Paused", "Completed", "Failed"]
 
     var body: some View {
@@ -47,22 +50,94 @@ struct ContentView: View {
                         .help("Bulk actions for selected downloads")
                     }
                     Spacer()
+                    Menu {
+                        Button("All types") { typeFilter = "All types" }
+                        ForEach(typeOptions, id: \.self) { type in
+                            Button(type) { typeFilter = type }
+                        }
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .help("Filter by file type: \(typeFilter)")
+                    Menu {
+                        Button("Newest first") { sortOption = "Newest first" }
+                        Button("Oldest first") { sortOption = "Oldest first" }
+                        Button("Type A–Z") { sortOption = "Type A–Z" }
+                        Button("Name A–Z") { sortOption = "Name A–Z" }
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .help("Sort: \(sortOption)")
+                    Menu {
+                        Button("No grouping") { groupOption = "None" }
+                        Button("Group by type") { groupOption = "Type" }
+                        Button("Group by day") { groupOption = "Day" }
+                    } label: {
+                        Image(systemName: "square.grid.2x2")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .help("Group: \(groupOption)")
                     TextField("Search", text: $search)
                         .textFieldStyle(.roundedBorder)
                         .frame(minWidth: 80, idealWidth: 190, maxWidth: 220)
                 }.padding()
-                List(filtered, selection: $selectedIDs) { record in
-                    DownloadRow(record: record, selected: $selected).tag(record.id)
+                List(selection: $selectedIDs) {
+                    ForEach(groups) { group in
+                        if groupOption == "None" {
+                            ForEach(group.records) { record in
+                                DownloadRow(record: record, selected: $selected).tag(record.id)
+                            }
+                        } else {
+                            Section(group.title) {
+                                ForEach(group.records) { record in
+                                    DownloadRow(record: record, selected: $selected).tag(record.id)
+                                }
+                            }
+                        }
+                    }
                 }.listStyle(.inset)
             }.navigationTitle(filter)
         } detail: { if let selected { DetailView(record: selected) } else { ContentUnavailableView("Select a download", systemImage: "arrow.down.circle") } }
         .sheet(isPresented: $showingAdd) { AddDownloadView() }
         .onDrop(of: [.url], isTargeted: nil) { providers in for provider in providers { _ = provider.loadObject(ofClass: URL.self) { url, _ in if let url { Task { @MainActor in manager.add(url: url, destinationFolder: Self.downloadsFolder) } } } }; return true }
     }
-    private var filtered: [DownloadRecord] { manager.records.filter { (filter == "All" || $0.state.label == filter) && (search.isEmpty || $0.fileName.localizedCaseInsensitiveContains(search)) } }
+    private var typeOptions: [String] { Array(Set(manager.records.map(\.fileType))).sorted() }
+    private var filtered: [DownloadRecord] {
+        let matching = manager.records.filter {
+            (filter == "All" || $0.state.label == filter) &&
+            (typeFilter == "All types" || $0.fileType == typeFilter) &&
+            (search.isEmpty || $0.fileName.localizedCaseInsensitiveContains(search))
+        }
+        switch sortOption {
+        case "Oldest first": return matching.sorted { $0.createdAt < $1.createdAt }
+        case "Type A–Z": return matching.sorted { $0.fileType.localizedStandardCompare($1.fileType) == .orderedAscending }
+        case "Name A–Z": return matching.sorted { $0.fileName.localizedStandardCompare($1.fileName) == .orderedAscending }
+        default: return matching.sorted { $0.createdAt > $1.createdAt }
+        }
+    }
+    private var groups: [DownloadGroup] {
+        guard groupOption != "None" else { return [DownloadGroup(title: "", records: filtered)] }
+        if groupOption == "Type" {
+            let grouped = Dictionary(grouping: filtered, by: \.fileType)
+            return grouped.keys.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+                .map { DownloadGroup(title: $0, records: grouped[$0] ?? []) }
+        }
+        let grouped = Dictionary(grouping: filtered) { Calendar.current.startOfDay(for: $0.createdAt) }
+        return grouped.keys.sorted(by: >)
+            .map { DownloadGroup(title: dayKey(for: $0), records: grouped[$0] ?? []) }
+    }
+    private func dayKey(for date: Date) -> String { DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .none) }
     private func records(for ids: Set<UUID>) -> [DownloadRecord] { manager.records.filter { ids.contains($0.id) } }
     private func icon(_ name: String) -> String { ["All":"tray.full", "Downloading":"arrow.down.circle", "Queued":"clock", "Paused":"pause.circle", "Completed":"checkmark.circle", "Failed":"exclamationmark.circle" ][name] ?? "tray" }
     static var downloadsFolder: URL { DownloadPreferences.downloadFolder }
+}
+
+struct DownloadGroup: Identifiable {
+    let title: String
+    let records: [DownloadRecord]
+    var id: String { title.isEmpty ? "all" : title }
 }
 
 struct DownloadRow: View {

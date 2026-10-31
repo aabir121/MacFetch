@@ -47,6 +47,10 @@ final class DownloadRecord {
     var destinationURL: URL { URL(fileURLWithPath: destinationPath) }
     var state: DownloadState { get { DownloadState(rawValue: stateRaw) ?? .queued } set { stateRaw = newValue.rawValue } }
     var progress: Double { totalBytes > 0 ? min(1, Double(downloadedBytes) / Double(totalBytes)) : 0 }
+    var fileType: String {
+        let extensionName = URL(fileURLWithPath: fileName).pathExtension
+        return extensionName.isEmpty ? "Other" : extensionName.uppercased()
+    }
 }
 
 extension String { var nilIfEmpty: String? { isEmpty ? nil : self } }
