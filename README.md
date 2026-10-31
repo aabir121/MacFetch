@@ -25,17 +25,74 @@ MacFetch is a native macOS download manager with a SwiftUI interface, menu-bar c
 
 ## Build the app
 
+Use the full Xcode developer toolchain. On machines where `xcode-select` points
+to Command Line Tools, calling `xcodebuild` without `DEVELOPER_DIR` can fail
+before the project is compiled.
+
 ```sh
-xcodebuild \
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
   -project MacFetch.xcodeproj \
   -scheme MacFetch \
   -configuration Release \
   -destination 'platform=macOS' \
-  -derivedDataPath /tmp/macfetch-derived \
-  build
+  -derivedDataPath /private/tmp/macfetch-derived \
+  build \
+  CODE_SIGNING_ALLOWED=NO
 ```
 
-The built application is produced at `Build/Products/Release/MacFetch.app` inside the derived-data directory. For local use, copy it to `/Applications` or `~/Applications`.
+The built application is produced at:
+
+`/private/tmp/macfetch-derived/Build/Products/Release/MacFetch.app`
+
+## Install and launch a local build
+
+The following installs the app for the current user. It avoids replacing a
+system-wide copy in `/Applications` and is also the path used by the native
+messaging manifest in this repository.
+
+```sh
+mkdir -p "$HOME/Applications"
+ditto \
+  /private/tmp/macfetch-derived/Build/Products/Release/MacFetch.app \
+  "$HOME/Applications/MacFetch.app"
+```
+
+When the build was created with `CODE_SIGNING_ALLOWED=NO`, ad-hoc sign the
+installed bundle before launching it. This prevents LaunchServices from
+rejecting stale or incomplete signature metadata:
+
+```sh
+codesign --force --deep --sign - "$HOME/Applications/MacFetch.app"
+codesign --verify --deep --strict "$HOME/Applications/MacFetch.app"
+open "$HOME/Applications/MacFetch.app"
+```
+
+To confirm the running copy is the newly installed one, open **MacFetch** and
+check that the Downloads workspace shows the table columns for State, Filename,
+Progress, Size, Speed, Elapsed Time, Estimated Time, and Type. The transfer
+rate menu is in the toolbar beside the sort controls.
+
+If `open` reports `kLSNoExecutableErr`, verify that
+`Contents/MacOS/MacFetch` exists and repeat the `codesign` command above.
+
+To install system-wide instead, use `/Applications/MacFetch.app` as the
+destination and run the copy/sign commands with administrator privileges.
+
+## Run a local download smoke test
+
+Start the repository’s localhost-only fixture server in one terminal:
+
+```sh
+python3 TestAssets/server.py
+```
+
+In MacFetch, click **Add**, enter the following URL, and click **Download**:
+
+`http://127.0.0.1:8765/macfetch-browser-trigger.txt`
+
+The row should appear in the Downloads table. Use the row’s context menu and
+choose **Show Details** to open the speed graph in the right-side inspector.
+Stop the fixture server with `Ctrl-C` when finished.
 
 ## Install the Chrome integration
 

@@ -19,11 +19,12 @@ actor SegmentDownloader {
         return (headSize > 0 ? headSize : http.expectedContentLength, false)
     }
 
-    func download(url: URL, destination: URL, connections: Int, onStarted: @escaping @Sendable (Int64) async -> Void, onProgress: @escaping @Sendable (Int64) -> Void) async throws {
+    func download(url: URL, destination: URL, connections: Int, rateLimit: Double?, onStarted: @escaping @Sendable (Int64) async -> Void, onProgress: @escaping @Sendable (Int64) -> Void) async throws {
         let info = try await probe(url)
         await onStarted(info.size)
         try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if !info.ranged || info.size <= 0 || connections == 1 { try await stream(url: url, to: destination, range: nil, expectedBytes: info.size, onProgress: onProgress); return }
+        let limiter = rateLimit.map { DownloadRateLimiter(bytesPerSecond: $0) }
+        if !info.ranged || info.size <= 0 || connections == 1 { try await stream(url: url, to: destination, range: nil, expectedBytes: info.size, limiter: limiter, onProgress: onProgress); return }
         let count = min(max(1, connections), 32), chunk = max(1, info.size / Int64(count))
         let folder = destination.deletingLastPathComponent().appendingPathComponent(".macfetch-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -31,7 +32,7 @@ actor SegmentDownloader {
         try await withThrowingTaskGroup(of: Void.self) { group in
             for index in 0..<count {
                 let start = Int64(index) * chunk, end = index == count - 1 ? info.size - 1 : start + chunk - 1
-                group.addTask { try await self.stream(url: url, to: folder.appendingPathComponent("segment-\(index)"), range: start...end, expectedBytes: end - start + 1, onProgress: onProgress) }
+                group.addTask { try await self.stream(url: url, to: folder.appendingPathComponent("segment-\(index)"), range: start...end, expectedBytes: end - start + 1, limiter: limiter, onProgress: onProgress) }
             }
             try await group.waitForAll()
         }
@@ -44,7 +45,7 @@ actor SegmentDownloader {
         }
     }
 
-    private func stream(url: URL, to destination: URL, range: ClosedRange<Int64>?, expectedBytes: Int64?, onProgress: @escaping @Sendable (Int64) -> Void) async throws {
+    private func stream(url: URL, to destination: URL, range: ClosedRange<Int64>?, expectedBytes: Int64?, limiter: DownloadRateLimiter?, onProgress: @escaping @Sendable (Int64) -> Void) async throws {
         var request = URLRequest(url: url); request.timeoutInterval = 60
         if let range { request.setValue("bytes=\(range.lowerBound)-\(range.upperBound)", forHTTPHeaderField: "Range") }
         let (bytes, response) = try await session.bytes(for: request)
@@ -57,12 +58,27 @@ actor SegmentDownloader {
         do {
             for try await byte in bytes {
                 buffer.append(byte); received += 1
-                if buffer.count >= 1024 * 1024 { try handle.write(contentsOf: buffer); written += Int64(buffer.count); onProgress(Int64(buffer.count)); buffer.removeAll(keepingCapacity: true) }
+                if buffer.count >= 1024 * 1024 { let chunkSize = Int64(buffer.count); await limiter?.acquire(bytes: chunkSize); try handle.write(contentsOf: buffer); written += chunkSize; onProgress(chunkSize); buffer.removeAll(keepingCapacity: true) }
             }
         } catch {
             guard let expectedBytes, received == expectedBytes else { throw error }
         }
-        if !buffer.isEmpty { try handle.write(contentsOf: buffer); written += Int64(buffer.count); onProgress(Int64(buffer.count)) }
+        if !buffer.isEmpty { let chunkSize = Int64(buffer.count); await limiter?.acquire(bytes: chunkSize); try handle.write(contentsOf: buffer); written += chunkSize; onProgress(chunkSize) }
         if let expectedBytes, written != expectedBytes { throw URLError(.cannotParseResponse) }
+    }
+}
+
+actor DownloadRateLimiter {
+    private let bytesPerSecond: Double
+    private var nextAvailable = ContinuousClock.now
+
+    init(bytesPerSecond: Double) { self.bytesPerSecond = max(1, bytesPerSecond) }
+
+    func acquire(bytes: Int64) async {
+        let duration = Duration.seconds(Double(bytes) / bytesPerSecond)
+        let now = ContinuousClock.now
+        let start = max(now, nextAvailable)
+        nextAvailable = start + duration
+        if start > now { try? await Task.sleep(for: start - now) }
     }
 }

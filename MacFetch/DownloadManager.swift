@@ -9,6 +9,7 @@ final class DownloadManager: ObservableObject {
     @Published var samples: [DownloadSample] = []
     @Published var totalSpeed: Double = 0
     @Published var speedSamples: [Double] = []
+    @Published private(set) var rateLimit: DownloadRateLimit
     var maxConnections = 8
     var maxConcurrentDownloads = 3
     private let context: ModelContext
@@ -19,7 +20,15 @@ final class DownloadManager: ObservableObject {
     private var lastProgressUpdate = Date.distantPast
     var activeCount: Int { jobs.count }
 
-    init(context: ModelContext) { self.context = context; refresh(loadSamples: true); resumeRecoverable(); Task { await tick() } }
+    init(context: ModelContext) {
+        self.context = context
+        self.rateLimit = DownloadRateLimit(storedValue: UserDefaults.standard.double(forKey: DownloadPreferences.rateLimitKey))
+        refresh(loadSamples: true); resumeRecoverable(); Task { await tick() }
+    }
+    func setRateLimit(_ limit: DownloadRateLimit) {
+        rateLimit = limit
+        UserDefaults.standard.set(limit.storedValue, forKey: DownloadPreferences.rateLimitKey)
+    }
     func refresh(loadSamples: Bool = false) {
         let fetched = (try? context.fetch(FetchDescriptor<DownloadRecord>(sortBy: [SortDescriptor(\DownloadRecord.createdAt)]))) ?? []
         if loadSamples { samples = (try? context.fetch(FetchDescriptor<DownloadSample>(sortBy: [SortDescriptor(\DownloadSample.timestamp)]))) ?? [] }
@@ -57,7 +66,7 @@ final class DownloadManager: ObservableObject {
         jobs[record.id] = Task { [weak self] in
             guard let self, let url = record.url else { return }
             do {
-                try await self.engine.download(url: url, destination: record.destinationURL, connections: self.maxConnections, onStarted: { [weak self, weak record] size in await MainActor.run { guard let self, let record else { return }; record.totalBytes = size; self.save(); self.refresh() } }) { [weak self] bytes in Task { @MainActor in self?.record(record, bytes: bytes) } }
+                try await self.engine.download(url: url, destination: record.destinationURL, connections: self.maxConnections, rateLimit: self.rateLimit.bytesPerSecond, onStarted: { [weak self, weak record] size in await MainActor.run { guard let self, let record else { return }; record.totalBytes = size; self.save(); self.refresh() } }) { [weak self] bytes in Task { @MainActor in self?.record(record, bytes: bytes) } }
                 record.state = .completed; record.downloadedBytes = record.totalBytes; record.completedAt = .now
             } catch is CancellationError { return }
             catch {

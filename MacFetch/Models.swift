@@ -3,6 +3,7 @@ import SwiftData
 
 enum DownloadPreferences {
     static let downloadLocationKey = "downloadLocationPath"
+    static let rateLimitKey = "downloadRateLimit"
 
     static var defaultFolder: URL {
         FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
@@ -13,6 +14,40 @@ enum DownloadPreferences {
             return defaultFolder
         }
         return URL(fileURLWithPath: path, isDirectory: true)
+    }
+}
+
+enum DownloadRateLimit: Identifiable {
+    case unlimited
+    case kilobytes(Double)
+    case megabytes(Double)
+
+    static let presets: [DownloadRateLimit] = [
+        .kilobytes(500), .kilobytes(650), .kilobytes(700), .kilobytes(750), .kilobytes(800),
+        .kilobytes(850), .kilobytes(900), .kilobytes(950), .megabytes(1), .megabytes(2), .megabytes(5)
+    ]
+
+    var id: String { title }
+    var bytesPerSecond: Double? {
+        switch self {
+        case .unlimited: return nil
+        case .kilobytes(let value): return Double(value) * 1_000
+        case .megabytes(let value): return Double(value) * 1_000_000
+        }
+    }
+    var title: String {
+        switch self {
+        case .unlimited: return "Unlimited"
+        case .kilobytes(let value): return String(format: "%.0fKB/sec", value)
+        case .megabytes(let value): return String(format: "%.2fMB/sec", value)
+        }
+    }
+    var storedValue: Double { bytesPerSecond ?? 0 }
+
+    init(storedValue: Double) {
+        guard storedValue > 0 else { self = .unlimited; return }
+        if storedValue >= 1_000_000 { self = .megabytes(max(0.01, storedValue / 1_000_000)) }
+        else { self = .kilobytes(max(1, storedValue / 1_000)) }
     }
 }
 
