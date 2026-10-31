@@ -23,7 +23,7 @@ actor SegmentDownloader {
         let info = try await probe(url)
         await onStarted(info.size)
         try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if !info.ranged || info.size <= 0 || connections == 1 { try await stream(url: url, to: destination, range: nil, onProgress: onProgress); return }
+        if !info.ranged || info.size <= 0 || connections == 1 { try await stream(url: url, to: destination, range: nil, expectedBytes: info.size, onProgress: onProgress); return }
         let count = min(max(1, connections), 32), chunk = max(1, info.size / Int64(count))
         let folder = destination.deletingLastPathComponent().appendingPathComponent(".macfetch-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -31,7 +31,7 @@ actor SegmentDownloader {
         try await withThrowingTaskGroup(of: Void.self) { group in
             for index in 0..<count {
                 let start = Int64(index) * chunk, end = index == count - 1 ? info.size - 1 : start + chunk - 1
-                group.addTask { try await self.stream(url: url, to: folder.appendingPathComponent("segment-\(index)"), range: start...end, onProgress: onProgress) }
+                group.addTask { try await self.stream(url: url, to: folder.appendingPathComponent("segment-\(index)"), range: start...end, expectedBytes: end - start + 1, onProgress: onProgress) }
             }
             try await group.waitForAll()
         }
@@ -44,7 +44,7 @@ actor SegmentDownloader {
         }
     }
 
-    private func stream(url: URL, to destination: URL, range: ClosedRange<Int64>?, onProgress: @escaping @Sendable (Int64) -> Void) async throws {
+    private func stream(url: URL, to destination: URL, range: ClosedRange<Int64>?, expectedBytes: Int64?, onProgress: @escaping @Sendable (Int64) -> Void) async throws {
         var request = URLRequest(url: url); request.timeoutInterval = 60
         if let range { request.setValue("bytes=\(range.lowerBound)-\(range.upperBound)", forHTTPHeaderField: "Range") }
         let (bytes, response) = try await session.bytes(for: request)
@@ -53,9 +53,16 @@ actor SegmentDownloader {
         try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
         FileManager.default.createFile(atPath: destination.path, contents: nil)
         let handle = try FileHandle(forWritingTo: destination); defer { try? handle.close() }
-        var buffer = Data(); buffer.reserveCapacity(1024 * 1024); var written: Int64 = 0
-        for try await byte in bytes { buffer.append(byte); if buffer.count >= 1024 * 1024 { try handle.write(contentsOf: buffer); written += Int64(buffer.count); onProgress(Int64(buffer.count)); buffer.removeAll(keepingCapacity: true) } }
+        var buffer = Data(); buffer.reserveCapacity(1024 * 1024); var written: Int64 = 0; var received: Int64 = 0
+        do {
+            for try await byte in bytes {
+                buffer.append(byte); received += 1
+                if buffer.count >= 1024 * 1024 { try handle.write(contentsOf: buffer); written += Int64(buffer.count); onProgress(Int64(buffer.count)); buffer.removeAll(keepingCapacity: true) }
+            }
+        } catch {
+            guard let expectedBytes, received == expectedBytes else { throw error }
+        }
         if !buffer.isEmpty { try handle.write(contentsOf: buffer); written += Int64(buffer.count); onProgress(Int64(buffer.count)) }
-        if let range, written != range.upperBound - range.lowerBound + 1 { throw URLError(.cannotParseResponse) }
+        if let expectedBytes, written != expectedBytes { throw URLError(.cannotParseResponse) }
     }
 }

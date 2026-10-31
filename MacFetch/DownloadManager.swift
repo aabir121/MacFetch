@@ -19,7 +19,17 @@ final class DownloadManager: ObservableObject {
     var activeCount: Int { jobs.count }
 
     init(context: ModelContext) { self.context = context; refresh(); resumeRecoverable(); Task { await tick() } }
-    func refresh() { records = (try? context.fetch(FetchDescriptor<DownloadRecord>(sortBy: [SortDescriptor(\DownloadRecord.createdAt)]))) ?? [] }
+    func refresh() {
+        let fetched = (try? context.fetch(FetchDescriptor<DownloadRecord>(sortBy: [SortDescriptor(\DownloadRecord.createdAt)]))) ?? []
+        var repaired = false
+        for record in fetched where record.state == .failed && isCompleteOnDisk(record) {
+            record.state = .completed
+            record.errorMessage = nil
+            repaired = true
+        }
+        if repaired { save() }
+        records = fetched
+    }
     func add(url: URL, destinationFolder: URL, fileName: String? = nil) {
         guard !records.contains(where: { $0.urlString == url.absoluteString && $0.state != .failed }) else { return }
         let resolvedFileName = fileName.flatMap { URL(fileURLWithPath: $0).lastPathComponent.nilIfEmpty } ?? url.lastPathComponent.nilIfEmpty ?? "download"
@@ -48,12 +58,26 @@ final class DownloadManager: ObservableObject {
                 try await self.engine.download(url: url, destination: record.destinationURL, connections: self.maxConnections, onStarted: { [weak self, weak record] size in await MainActor.run { guard let self, let record else { return }; record.totalBytes = size; self.save(); self.refresh() } }) { [weak self] bytes in Task { @MainActor in self?.record(record, bytes: bytes) } }
                 record.state = .completed; record.downloadedBytes = record.totalBytes
             } catch is CancellationError { return }
-            catch { record.state = .failed; record.errorMessage = error.localizedDescription }
+            catch {
+                if self.isCompleteOnDisk(record) {
+                    record.state = .completed
+                    record.errorMessage = nil
+                } else {
+                    record.state = .failed
+                    record.errorMessage = error.localizedDescription
+                }
+            }
             self.save(); self.jobs[record.id] = nil; self.refresh(); self.startQueued()
         }
     }
     private func record(_ record: DownloadRecord, bytes: Int64) { record.downloadedBytes += bytes; if Date().timeIntervalSince(lastProgressUpdate) > 0.25 { lastProgressUpdate = .now; refresh() } }
     private func save() { try? context.save() }
+    private func isCompleteOnDisk(_ record: DownloadRecord) -> Bool {
+        guard record.totalBytes > 0, record.downloadedBytes >= record.totalBytes,
+              let attributes = try? FileManager.default.attributesOfItem(atPath: record.destinationURL.path),
+              let fileSize = attributes[.size] as? NSNumber else { return false }
+        return fileSize.int64Value >= record.totalBytes
+    }
     private func resumeRecoverable() { for record in records where record.state == .downloading { record.state = .queued }; startQueued() }
     private func tick() async { while !Task.isCancelled { try? await Task.sleep(for: .seconds(1)); let now = Date(); let elapsed = now.timeIntervalSince(lastTick); totalSpeed = elapsed > 0 ? Double(records.reduce(0) { $0 + ($1.downloadedBytes - (lastBytes[$1.id] ?? $1.downloadedBytes)) }) / elapsed : 0; speedSamples.append(totalSpeed); if speedSamples.count > 30 { speedSamples.removeFirst() }; for record in records { lastBytes[record.id] = record.downloadedBytes }; lastTick = now; refresh() } }
 }

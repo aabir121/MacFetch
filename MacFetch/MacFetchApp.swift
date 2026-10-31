@@ -121,6 +121,7 @@ struct MenuBarDownloadsView: View {
                             .lineLimit(2)
                             .truncationMode(.middle)
                             .fixedSize(horizontal: false, vertical: true)
+                            .help(record.fileName)
                         Spacer()
                         Text(record.state.label)
                             .font(.caption)
