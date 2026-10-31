@@ -9,8 +9,9 @@ final class DownloadManager: ObservableObject {
     @Published var samples: [DownloadSample] = []
     @Published var totalSpeed: Double = 0
     @Published var speedSamples: [Double] = []
+    @Published var connectionStats: [UUID: DownloadConnectionSnapshot] = [:]
     @Published private(set) var rateLimit: DownloadRateLimit
-    var maxConnections = 8
+    @Published private(set) var maxConnections: Int
     var maxConcurrentDownloads = 3
     private let context: ModelContext
     private let engine = SegmentDownloader()
@@ -22,12 +23,18 @@ final class DownloadManager: ObservableObject {
 
     init(context: ModelContext) {
         self.context = context
+        let storedConnections = UserDefaults.standard.integer(forKey: DownloadPreferences.maxConnectionsKey)
+        self.maxConnections = [1, 4, 8, 16, 32].contains(storedConnections) ? storedConnections : 8
         self.rateLimit = DownloadRateLimit(storedValue: UserDefaults.standard.double(forKey: DownloadPreferences.rateLimitKey))
         refresh(loadSamples: true); resumeRecoverable(); Task { await tick() }
     }
     func setRateLimit(_ limit: DownloadRateLimit) {
         rateLimit = limit
         UserDefaults.standard.set(limit.storedValue, forKey: DownloadPreferences.rateLimitKey)
+    }
+    func setMaxConnections(_ connections: Int) {
+        maxConnections = min(32, max(1, connections))
+        UserDefaults.standard.set(maxConnections, forKey: DownloadPreferences.maxConnectionsKey)
     }
     func refresh(loadSamples: Bool = false) {
         let fetched = (try? context.fetch(FetchDescriptor<DownloadRecord>(sortBy: [SortDescriptor(\DownloadRecord.createdAt)]))) ?? []
@@ -48,9 +55,9 @@ final class DownloadManager: ObservableObject {
     }
     func start(_ record: DownloadRecord) { record.state = .queued; save(); startQueued() }
     func resume(_ records: [DownloadRecord]) { records.filter { $0.state == .paused || $0.state == .queued }.forEach { $0.state = .queued }; save(); startQueued() }
-    func pause(_ record: DownloadRecord) { jobs[record.id]?.cancel(); jobs[record.id] = nil; record.state = .paused; save(); refresh(); startQueued() }
+    func pause(_ record: DownloadRecord) { jobs[record.id]?.cancel(); jobs[record.id] = nil; connectionStats[record.id] = nil; record.state = .paused; save(); refresh(); startQueued() }
     func pause(_ records: [DownloadRecord]) { records.filter { $0.state == .downloading }.forEach { pause($0) } }
-    func cancel(_ record: DownloadRecord) { jobs[record.id]?.cancel(); jobs[record.id] = nil; record.state = .cancelled; save(); refresh(); startQueued() }
+    func cancel(_ record: DownloadRecord) { jobs[record.id]?.cancel(); jobs[record.id] = nil; connectionStats[record.id] = nil; record.state = .cancelled; save(); refresh(); startQueued() }
     func cancel(_ records: [DownloadRecord]) { records.filter { $0.state == .downloading || $0.state == .queued || $0.state == .paused }.forEach { cancel($0) } }
     func retry(_ record: DownloadRecord) { record.state = .queued; record.errorMessage = nil; record.totalBytes = 0; record.downloadedBytes = 0; record.startedAt = nil; record.completedAt = nil; record.peakSpeed = nil; save(); startQueued() }
     func remove(_ record: DownloadRecord) { jobs[record.id]?.cancel(); jobs[record.id] = nil; context.delete(record); save(); refresh(); startQueued() }
@@ -66,7 +73,7 @@ final class DownloadManager: ObservableObject {
         jobs[record.id] = Task { [weak self] in
             guard let self, let url = record.url else { return }
             do {
-                try await self.engine.download(url: url, destination: record.destinationURL, connections: self.maxConnections, rateLimit: self.rateLimit.bytesPerSecond, onStarted: { [weak self, weak record] size in await MainActor.run { guard let self, let record else { return }; record.totalBytes = size; self.save(); self.refresh() } }) { [weak self] bytes in Task { @MainActor in self?.record(record, bytes: bytes) } }
+                try await self.engine.download(url: url, destination: record.destinationURL, connections: self.maxConnections, rateLimit: self.rateLimit.bytesPerSecond, onStarted: { [weak self, weak record] size in await MainActor.run { guard let self, let record else { return }; record.totalBytes = size; self.save(); self.refresh() } }, onProgress: { [weak self] bytes in await MainActor.run { self?.record(record, bytes: bytes) } }, onConnections: { [weak self] snapshot in await MainActor.run { self?.connectionStats[record.id] = snapshot } })
                 record.state = .completed; record.downloadedBytes = record.totalBytes; record.completedAt = .now
             } catch is CancellationError { return }
             catch {
@@ -80,6 +87,7 @@ final class DownloadManager: ObservableObject {
                     record.completedAt = .now
                 }
             }
+            self.connectionStats[record.id] = nil
             self.save(); self.jobs[record.id] = nil; self.refresh(); self.startQueued()
         }
     }

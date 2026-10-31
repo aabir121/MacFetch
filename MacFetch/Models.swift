@@ -4,6 +4,7 @@ import SwiftData
 enum DownloadPreferences {
     static let downloadLocationKey = "downloadLocationPath"
     static let rateLimitKey = "downloadRateLimit"
+    static let maxConnectionsKey = "downloadMaxConnections"
 
     static var defaultFolder: URL {
         FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]

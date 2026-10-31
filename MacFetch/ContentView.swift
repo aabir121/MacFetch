@@ -49,9 +49,16 @@ struct ContentView: View {
                             .lineLimit(1)
                             .help("\(selectedIDs.count) selected")
                         Menu {
-                            Button("Pause") { manager.pause(records(for: selectedIDs)) }
-                            Button("Resume") { manager.resume(records(for: selectedIDs)) }
-                            Button("Stop", role: .destructive) { manager.cancel(records(for: selectedIDs)) }
+                            let selectedRecords = records(for: selectedIDs)
+                            if selectedRecords.contains(where: { $0.state == .downloading }) {
+                                Button("Pause") { manager.pause(selectedRecords.filter { $0.state == .downloading }) }
+                            }
+                            if selectedRecords.contains(where: { $0.state == .queued || $0.state == .paused }) {
+                                Button("Resume") { manager.resume(selectedRecords.filter { $0.state == .queued || $0.state == .paused }) }
+                            }
+                            if selectedRecords.contains(where: { $0.state == .downloading || $0.state == .queued || $0.state == .paused }) {
+                                Button("Stop", role: .destructive) { manager.cancel(selectedRecords.filter { $0.state == .downloading || $0.state == .queued || $0.state == .paused }) }
+                            }
                             Divider()
                             Button("Remove", role: .destructive) {
                                 manager.remove(records(for: selectedIDs))
@@ -98,6 +105,15 @@ struct ContentView: View {
                     }
                     .menuStyle(.borderlessButton)
                     .help("Transfer rate limit")
+                    Menu {
+                        ForEach([1, 4, 8, 16, 32], id: \.self) { count in
+                            Button("\(count) connection\(count == 1 ? "" : "s")") { manager.setMaxConnections(count) }
+                        }
+                    } label: {
+                        Label("\(manager.maxConnections) connections", systemImage: "network")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .help("Maximum parallel HTTP connections")
                     TextField("Search", text: $search)
                         .textFieldStyle(.roundedBorder)
                         .frame(minWidth: 80, idealWidth: 190, maxWidth: 220)
@@ -118,9 +134,16 @@ struct ContentView: View {
                             Button("Show Details", systemImage: "chart.xyaxis.line") { selected = record; showingDownloadDetail = true }
                         }
                         Divider()
-                        Button("Pause") { manager.pause(records(for: ids)) }
-                        Button("Resume") { manager.resume(records(for: ids)) }
-                        Button("Stop", role: .destructive) { manager.cancel(records(for: ids)) }
+                        let selectedRecords = records(for: ids)
+                        if selectedRecords.contains(where: { $0.state == .downloading }) {
+                            Button("Pause") { manager.pause(selectedRecords.filter { $0.state == .downloading }) }
+                        }
+                        if selectedRecords.contains(where: { $0.state == .queued || $0.state == .paused }) {
+                            Button("Resume") { manager.resume(selectedRecords.filter { $0.state == .queued || $0.state == .paused }) }
+                        }
+                        if selectedRecords.contains(where: { $0.state == .downloading || $0.state == .queued || $0.state == .paused }) {
+                            Button("Stop", role: .destructive) { manager.cancel(selectedRecords.filter { $0.state == .downloading || $0.state == .queued || $0.state == .paused }) }
+                        }
                     }
                     if showingDownloadDetail, let selected {
                         Divider()
@@ -169,6 +192,7 @@ struct ContentView: View {
         return formatDuration(end.timeIntervalSince(start))
     }
     private func etaText(_ record: DownloadRecord) -> String {
+        guard record.state == .downloading else { return "—" }
         guard record.totalBytes > 0, record.downloadedBytes < record.totalBytes, let start = record.startedAt else { return "—" }
         let elapsed = max(0.1, Date().timeIntervalSince(start)); let speed = Double(record.downloadedBytes) / elapsed
         guard speed > 0 else { return "—" }
@@ -239,6 +263,40 @@ struct CustomRateLimitView: View {
     }
 }
 
-struct DetailView: View { @EnvironmentObject private var manager: DownloadManager; let record: DownloadRecord; var body: some View { VStack(alignment: .leading, spacing: 18) { Label(record.fileName, systemImage: record.state == .failed ? "exclamationmark.circle" : "arrow.down.doc").font(.title2); if record.state != .failed && record.state != .cancelled { ProgressView(value: record.progress) }; HStack { metric("Progress", "\(Int(record.progress * 100))%"); metric("Status", record.state.label); metric("Size", ByteCountFormatter.string(fromByteCount: record.totalBytes, countStyle: .file)) }; if let errorMessage = record.errorMessage, record.state == .failed { Text(errorMessage).font(.callout).foregroundStyle(.red).textSelection(.enabled) }; Chart(Array(manager.speedSamples.enumerated()), id: \.offset) { item in LineMark(x: .value("Time", item.offset), y: .value("Speed", item.element)) }.frame(height: 180).chartYAxisLabel("Bytes/s"); Spacer() }.padding() }
+struct DetailView: View {
+    @EnvironmentObject private var manager: DownloadManager
+    let record: DownloadRecord
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Label(record.fileName, systemImage: record.state == .failed ? "exclamationmark.circle" : "arrow.down.doc").font(.title2)
+            if record.state != .failed && record.state != .cancelled { ProgressView(value: record.progress) }
+            HStack {
+                metric("Progress", "\(Int(record.progress * 100))%")
+                metric("Status", record.state.label)
+                metric("Size", ByteCountFormatter.string(fromByteCount: record.totalBytes, countStyle: .file))
+            }
+            if let snapshot = manager.connectionStats[record.id], record.state == .downloading {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Connections").font(.headline)
+                        Spacer()
+                        Text("\(snapshot.activeConnections) active / \(snapshot.targetConnections) target").font(.caption).foregroundStyle(.secondary)
+                    }
+                    ForEach(snapshot.segments) { segment in
+                        HStack(spacing: 8) {
+                            ProgressView(value: segment.progress).frame(maxWidth: .infinity)
+                            Text(ByteCountFormatter.string(fromByteCount: segment.completed, countStyle: .file)).font(.caption2).frame(width: 70, alignment: .trailing)
+                            Circle().fill(segment.active ? .green : .secondary).frame(width: 6, height: 6)
+                        }
+                    }
+                }
+            }
+            if let errorMessage = record.errorMessage, record.state == .failed { Text(errorMessage).font(.callout).foregroundStyle(.red).textSelection(.enabled) }
+            Chart(Array(manager.speedSamples.enumerated()), id: \.offset) { item in LineMark(x: .value("Time", item.offset), y: .value("Speed", item.element)) }.frame(height: 180).chartYAxisLabel("Bytes/s")
+            Spacer()
+        }
+        .padding()
+    }
     private func metric(_ title: String, _ value: String) -> some View { VStack(alignment: .leading) { Text(title).font(.caption).foregroundStyle(.secondary); Text(value).font(.headline) } }
 }
