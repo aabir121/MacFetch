@@ -1,0 +1,30 @@
+#!/usr/bin/python3
+import json
+import struct
+import subprocess
+import sys
+from urllib.parse import quote
+
+def read_message():
+    raw_length = sys.stdin.buffer.read(4)
+    if len(raw_length) != 4:
+        return None
+    length = struct.unpack("<I", raw_length)[0]
+    return json.loads(sys.stdin.buffer.read(length).decode("utf-8"))
+
+def reply(payload):
+    encoded = json.dumps(payload).encode("utf-8")
+    sys.stdout.buffer.write(struct.pack("<I", len(encoded)) + encoded)
+    sys.stdout.buffer.flush()
+
+while True:
+    message = read_message()
+    if message is None:
+        break
+    url = message.get("url", "")
+    if message.get("type") == "download" and url.startswith(("http://", "https://")):
+        target = "macfetch://add?url=" + quote(url, safe="")
+        subprocess.Popen(["/usr/bin/open", "-g", target], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        reply({"ok": True})
+    else:
+        reply({"ok": False, "error": "invalid download URL"})

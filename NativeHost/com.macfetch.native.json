@@ -1,0 +1,7 @@
+{
+  "name": "com.macfetch.native",
+  "description": "MacFetch Chrome Native Messaging host",
+  "path": "/Users/imranhossain/Applications/MacFetch.app/Contents/Resources/macfetch-native-host",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://ojlhnfdbkeokolnkbobkoigegeaiaape/"]
+}

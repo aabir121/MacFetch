@@ -1,0 +1,187 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		000000000000000000000050 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000030 /* Models.swift */; };
+		000000000000000000000051 /* DownloadEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000031 /* DownloadEngine.swift */; };
+		000000000000000000000052 /* DownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000032 /* DownloadManager.swift */; };
+		000000000000000000000053 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000033 /* ContentView.swift */; };
+		000000000000000000000054 /* MacFetchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000034 /* MacFetchApp.swift */; };
+		000000000000000000000055 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000035 /* Assets.xcassets */; };
+		000000000000000000000056 /* macfetch-native-host in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000036 /* macfetch-native-host */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		000000000000000000000030 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacFetch/Models.swift; sourceTree = "<group>"; };
+		000000000000000000000031 /* DownloadEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacFetch/DownloadEngine.swift; sourceTree = "<group>"; };
+		000000000000000000000032 /* DownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacFetch/DownloadManager.swift; sourceTree = "<group>"; };
+		000000000000000000000033 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacFetch/ContentView.swift; sourceTree = "<group>"; };
+		000000000000000000000034 /* MacFetchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacFetch/MacFetchApp.swift; sourceTree = "<group>"; };
+		000000000000000000000035 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = MacFetch/Assets.xcassets; sourceTree = "<group>"; };
+		000000000000000000000036 /* macfetch-native-host */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = NativeHost/macfetch-native-host; sourceTree = "<group>"; fileEncoding = 4; includeInIndex = 0; };
+		000000000000000000000040 /* MacFetch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacFetch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		000000000000000000000022 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXResourcesBuildPhase section */
+		000000000000000000000023 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				000000000000000000000055 /* Assets.xcassets in Resources */,
+				000000000000000000000056 /* macfetch-native-host in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXGroup section */
+		000000000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000030 /* Models.swift */,
+				000000000000000000000031 /* DownloadEngine.swift */,
+				000000000000000000000032 /* DownloadManager.swift */,
+				000000000000000000000033 /* ContentView.swift */,
+				000000000000000000000034 /* MacFetchApp.swift */,
+				000000000000000000000035 /* Assets.xcassets */,
+				000000000000000000000036 /* macfetch-native-host */,
+				000000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		000000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000040 /* MacFetch.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		000000000000000000000020 /* MacFetch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 000000000000000000000010 /* Build configuration list for PBXNativeTarget "MacFetch" */;
+			buildPhases = (
+				000000000000000000000021 /* Sources */,
+				000000000000000000000022 /* Frameworks */,
+				000000000000000000000023 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MacFetch;
+			productName = MacFetch;
+			productReference = 000000000000000000000040 /* MacFetch.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		000000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+			};
+			buildConfigurationList = 000000000000000000000010 /* Build configuration list for PBXNativeTarget "MacFetch" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 000000000000000000000002;
+			productRefGroup = 000000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				000000000000000000000020 /* MacFetch */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		000000000000000000000021 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				000000000000000000000050 /* Models.swift in Sources */,
+				000000000000000000000051 /* DownloadEngine.swift in Sources */,
+				000000000000000000000052 /* DownloadManager.swift in Sources */,
+				000000000000000000000053 /* ContentView.swift in Sources */,
+				000000000000000000000054 /* MacFetchApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		000000000000000000000011 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = MacFetch/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.MacFetch;
+				PRODUCT_NAME = MacFetch;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		000000000000000000000012 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = MacFetch/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.MacFetch;
+				PRODUCT_NAME = MacFetch;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		000000000000000000000010 /* Build configuration list for PBXNativeTarget "MacFetch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000011 /* Debug */,
+				000000000000000000000012 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 000000000000000000000001 /* Project object */;
+}

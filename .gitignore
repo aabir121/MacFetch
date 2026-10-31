@@ -1,0 +1,13 @@
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+
+# macOS
+.DS_Store
+
+# Local tooling and generated artifacts
+.swiftpm/
+.codegraph/
+.agents/
