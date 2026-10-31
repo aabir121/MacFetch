@@ -30,7 +30,7 @@ import UniformTypeIdentifiers
         MenuBarExtra("MacFetch", systemImage: "arrow.down.circle") {
             MenuBarDownloadsView(manager: manager, openWindow: openWindow)
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
         .environmentObject(manager)
         Settings { SettingsView() }
     }

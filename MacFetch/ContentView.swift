@@ -187,9 +187,8 @@ struct ContentView: View {
         return ByteCountFormatter.string(fromByteCount: Int64(values.reduce(0, +) / Double(values.count)), countStyle: .file) + "/s"
     }
     private func elapsedText(_ record: DownloadRecord) -> String {
-        guard let start = record.startedAt else { return "—" }
-        let end = record.completedAt ?? .now
-        return formatDuration(end.timeIntervalSince(start))
+        guard record.state == .downloading, let start = record.startedAt else { return "—" }
+        return formatDuration(Date().timeIntervalSince(start))
     }
     private func etaText(_ record: DownloadRecord) -> String {
         guard record.state == .downloading else { return "—" }
