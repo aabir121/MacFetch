@@ -1,6 +1,21 @@
 import Foundation
 import SwiftData
 
+enum DownloadPreferences {
+    static let downloadLocationKey = "downloadLocationPath"
+
+    static var defaultFolder: URL {
+        FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+    }
+
+    static var downloadFolder: URL {
+        guard let path = UserDefaults.standard.string(forKey: downloadLocationKey), !path.isEmpty else {
+            return defaultFolder
+        }
+        return URL(fileURLWithPath: path, isDirectory: true)
+    }
+}
+
 enum DownloadState: String, Codable, CaseIterable {
     case queued, downloading, paused, completed, failed, cancelled
 

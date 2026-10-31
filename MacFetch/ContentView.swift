@@ -62,7 +62,7 @@ struct ContentView: View {
     private var filtered: [DownloadRecord] { manager.records.filter { (filter == "All" || $0.state.label == filter) && (search.isEmpty || $0.fileName.localizedCaseInsensitiveContains(search)) } }
     private func records(for ids: Set<UUID>) -> [DownloadRecord] { manager.records.filter { ids.contains($0.id) } }
     private func icon(_ name: String) -> String { ["All":"tray.full", "Downloading":"arrow.down.circle", "Queued":"clock", "Paused":"pause.circle", "Completed":"checkmark.circle", "Failed":"exclamationmark.circle" ][name] ?? "tray" }
-    static var downloadsFolder: URL { FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0] }
+    static var downloadsFolder: URL { DownloadPreferences.downloadFolder }
 }
 
 struct DownloadRow: View {

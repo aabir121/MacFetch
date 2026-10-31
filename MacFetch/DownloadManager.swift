@@ -20,9 +20,10 @@ final class DownloadManager: ObservableObject {
 
     init(context: ModelContext) { self.context = context; refresh(); resumeRecoverable(); Task { await tick() } }
     func refresh() { records = (try? context.fetch(FetchDescriptor<DownloadRecord>(sortBy: [SortDescriptor(\DownloadRecord.createdAt)]))) ?? [] }
-    func add(url: URL, destinationFolder: URL) {
+    func add(url: URL, destinationFolder: URL, fileName: String? = nil) {
         guard !records.contains(where: { $0.urlString == url.absoluteString && $0.state != .failed }) else { return }
-        let record = DownloadRecord(url: url, destination: destinationFolder.appendingPathComponent(url.lastPathComponent.nilIfEmpty ?? "download")); context.insert(record); save(); refresh(); startQueued()
+        let resolvedFileName = fileName.flatMap { URL(fileURLWithPath: $0).lastPathComponent.nilIfEmpty } ?? url.lastPathComponent.nilIfEmpty ?? "download"
+        let record = DownloadRecord(url: url, destination: destinationFolder.appendingPathComponent(resolvedFileName), fileName: resolvedFileName); context.insert(record); save(); refresh(); startQueued()
     }
     func start(_ record: DownloadRecord) { record.state = .queued; save(); startQueued() }
     func resume(_ records: [DownloadRecord]) { records.filter { $0.state == .paused || $0.state == .queued }.forEach { $0.state = .queued }; save(); startQueued() }

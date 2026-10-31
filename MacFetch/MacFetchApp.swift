@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 @main struct MacFetchApp: App {
     private let container: ModelContainer
@@ -18,9 +19,9 @@ import SwiftData
                 .alert(item: $pendingDownload) { pending in
                     Alert(
                         title: Text("Confirm download"),
-                        message: Text("MacFetch captured \(pending.url.lastPathComponent.nilIfEmpty ?? "this file"). Start downloading it?"),
+                        message: Text("MacFetch captured \(pending.fileName). Start downloading it?"),
                         primaryButton: .default(Text("Download")) {
-                            manager.add(url: pending.url, destinationFolder: ContentView.downloadsFolder)
+                            manager.add(url: pending.url, destinationFolder: ContentView.downloadsFolder, fileName: pending.fileName)
                         },
                         secondaryButton: .cancel()
                     )
@@ -34,10 +35,11 @@ import SwiftData
 
     private func handleIncomingURL(_ url: URL) {
         guard url.scheme == "macfetch", url.host == "add", let components = URLComponents(url: url, resolvingAgainstBaseURL: false), let value = components.queryItems?.first(where: { $0.name == "url" })?.value, let downloadURL = URL(string: value), ["http", "https"].contains(downloadURL.scheme) else { return }
+        let fileName = components.queryItems?.first(where: { $0.name == "filename" })?.value.flatMap { URL(fileURLWithPath: $0).lastPathComponent.nilIfEmpty } ?? downloadURL.lastPathComponent.nilIfEmpty ?? "download"
         if confirmCapturedDownloads {
-            pendingDownload = PendingDownload(url: downloadURL)
+            pendingDownload = PendingDownload(url: downloadURL, fileName: fileName)
         } else {
-            manager.add(url: downloadURL, destinationFolder: ContentView.downloadsFolder)
+            manager.add(url: downloadURL, destinationFolder: ContentView.downloadsFolder, fileName: fileName)
         }
     }
 }
@@ -45,10 +47,13 @@ import SwiftData
 struct PendingDownload: Identifiable {
     let id = UUID()
     let url: URL
+    let fileName: String
 }
 
 struct SettingsView: View {
     @AppStorage("confirmCapturedDownloads") private var confirmCapturedDownloads = true
+    @AppStorage(DownloadPreferences.downloadLocationKey) private var downloadLocationPath = DownloadPreferences.defaultFolder.path
+    @State private var showingFolderPicker = false
 
     var body: some View {
         Form {
@@ -58,10 +63,32 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            Section("Downloads") {
+                HStack {
+                    Text("Location")
+                    Spacer()
+                    Text(downloadLocationPath)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                HStack {
+                    Button("Choose Folder…") { showingFolderPicker = true }
+                    Button("Reset") { downloadLocationPath = DownloadPreferences.defaultFolder.path }
+                }
+                Text("New downloads will be saved here. Existing downloads keep their current destination.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .padding(20)
         .frame(width: 460)
+        .fileImporter(isPresented: $showingFolderPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
+            if case .success(let urls) = result, let folder = urls.first {
+                downloadLocationPath = folder.path
+            }
+        }
     }
 }
 
