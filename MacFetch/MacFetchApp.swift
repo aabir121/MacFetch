@@ -4,20 +4,64 @@ import SwiftData
 @main struct MacFetchApp: App {
     private let container: ModelContainer
     @StateObject private var manager: DownloadManager
+    @AppStorage("confirmCapturedDownloads") private var confirmCapturedDownloads = true
+    @State private var pendingDownload: PendingDownload?
     @Environment(\.openWindow) private var openWindow
 
     init() { let schema = Schema([DownloadRecord.self]); let container = try! ModelContainer(for: schema); self.container = container; _manager = StateObject(wrappedValue: DownloadManager(context: container.mainContext)) }
 
     var body: some Scene {
-        WindowGroup("MacFetch", id: "main") { ContentView().environmentObject(manager).onOpenURL { handleIncomingURL($0) } }.modelContainer(container)
+        WindowGroup("MacFetch", id: "main") {
+            ContentView()
+                .environmentObject(manager)
+                .onOpenURL { handleIncomingURL($0) }
+                .alert(item: $pendingDownload) { pending in
+                    Alert(
+                        title: Text("Confirm download"),
+                        message: Text("MacFetch captured \(pending.url.lastPathComponent.nilIfEmpty ?? "this file"). Start downloading it?"),
+                        primaryButton: .default(Text("Download")) {
+                            manager.add(url: pending.url, destinationFolder: ContentView.downloadsFolder)
+                        },
+                        secondaryButton: .cancel()
+                    )
+                }
+        }.modelContainer(container)
         MenuBarExtra("MacFetch", systemImage: "arrow.down.circle") {
             MenuBarDownloadsView(manager: manager, openWindow: openWindow)
         }.environmentObject(manager)
+        Settings { SettingsView() }
     }
 
     private func handleIncomingURL(_ url: URL) {
         guard url.scheme == "macfetch", url.host == "add", let components = URLComponents(url: url, resolvingAgainstBaseURL: false), let value = components.queryItems?.first(where: { $0.name == "url" })?.value, let downloadURL = URL(string: value), ["http", "https"].contains(downloadURL.scheme) else { return }
-        manager.add(url: downloadURL, destinationFolder: ContentView.downloadsFolder)
+        if confirmCapturedDownloads {
+            pendingDownload = PendingDownload(url: downloadURL)
+        } else {
+            manager.add(url: downloadURL, destinationFolder: ContentView.downloadsFolder)
+        }
+    }
+}
+
+struct PendingDownload: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+struct SettingsView: View {
+    @AppStorage("confirmCapturedDownloads") private var confirmCapturedDownloads = true
+
+    var body: some View {
+        Form {
+            Section("Chrome capture") {
+                Toggle("Ask before downloading captured files", isOn: $confirmCapturedDownloads)
+                Text("When enabled, MacFetch asks for confirmation after Chrome hands it a download URL. Disable this to start captured downloads automatically.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .padding(20)
+        .frame(width: 460)
     }
 }
 

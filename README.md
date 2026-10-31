@@ -9,6 +9,7 @@ MacFetch is a native macOS download manager with a SwiftUI interface, menu-bar c
 - Multi-select downloads with bulk pause, resume, stop, and remove actions.
 - Menu-bar list showing active downloads with progress and quick controls.
 - Chrome download interception through Native Messaging.
+- Configurable confirmation prompt for Chrome-captured downloads.
 - SwiftData persistence and recovery of interrupted downloads.
 - Finder reveal/open actions and drag-and-drop URL support.
 
@@ -49,6 +50,10 @@ The built application is produced at `Build/Products/Release/MacFetch.app` insid
    `~/Applications/MacFetch.app/Contents/Resources/macfetch-native-host`
 
 After installation, downloads started in Chrome are forwarded to MacFetch through the native messaging bridge. The included `NativeHost/com.macfetch.native.json` contains the extension ID used by the development installation in this workspace.
+
+## Capture confirmation
+
+MacFetch asks for confirmation before starting a URL captured from Chrome by default. Open **MacFetch > Settings** and change **Ask before downloading captured files** to disable the prompt and start captured downloads automatically.
 
 ## Installable archive
 
