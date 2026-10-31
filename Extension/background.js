@@ -1,19 +1,22 @@
 const HOST = "com.macfetch.native";
+const pendingDownloads = new Map();
 
-function sendToMacFetch(download) {
-  if (!download?.url || !/^https?:/i.test(download.url)) return;
+function isHttpDownload(download) {
+  return Boolean(download?.url && /^https?:/i.test(download.url));
+}
+
+function sendToMacFetch(download, filename) {
+  if (!isHttpDownload(download)) return;
   chrome.runtime.sendNativeMessage(HOST, {
     type: "download",
     url: download.url,
-    filename: download.filename || ""
+    filename: filename || download.filename || ""
   }, () => {
     if (chrome.runtime.lastError) console.warn("MacFetch bridge:", chrome.runtime.lastError.message);
   });
 }
 
-function interceptDownload(download) {
-  if (!download?.url || !/^https?:/i.test(download.url)) return;
-
+function interceptDownload(download, filename) {
   // Chrome has already created its own download item at this point. Cancel it
   // before handing the URL to MacFetch so the browser does not save a second
   // copy alongside the MacFetch transfer.
@@ -26,11 +29,24 @@ function interceptDownload(download) {
         console.warn("MacFetch could not remove Chrome download:", chrome.runtime.lastError.message);
       }
     });
-    sendToMacFetch(download);
+    sendToMacFetch(download, filename);
   });
 }
 
-chrome.downloads.onCreated.addListener(interceptDownload);
+chrome.downloads.onCreated.addListener(download => {
+  if (isHttpDownload(download)) pendingDownloads.set(download.id, download);
+});
+
+chrome.downloads.onDeterminingFilename.addListener((download, suggest) => {
+  const pending = pendingDownloads.get(download.id);
+  if (!pending) {
+    suggest();
+    return;
+  }
+  pendingDownloads.delete(download.id);
+  interceptDownload(download, download.filename || pending.filename);
+  suggest();
+});
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== "test") return;

@@ -57,7 +57,7 @@ After installation, downloads started in Chrome are forwarded to MacFetch throug
 
 MacFetch asks for confirmation before starting a URL captured from Chrome by default. Open **MacFetch > Settings** and change **Ask before downloading captured files** to disable the prompt and start captured downloads automatically.
 
-The same Settings panel lets you choose and remember the destination folder for new downloads. Chrome-provided filenames are preserved, including names that differ from the URL path.
+The same Settings panel lets you choose and remember the destination folder for new downloads. MacFetch waits for Chrome's resolved download filename, preserving the browser-provided name and extension even when they differ from the URL path.
 
 ## Installable archive
 
