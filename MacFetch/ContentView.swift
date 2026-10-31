@@ -20,20 +20,36 @@ struct ContentView: View {
         } content: {
             VStack(spacing: 0) {
                 HStack {
-                    Button("Add URL", systemImage: "plus") { showingAdd = true }.keyboardShortcut("n")
+                    Button { showingAdd = true } label: {
+                        Image(systemName: "plus")
+                    }
+                    .keyboardShortcut("n")
+                    .help("Add URL")
                     if !selectedIDs.isEmpty {
-                        Text("\(selectedIDs.count) selected").foregroundStyle(.secondary)
-                        Button("Pause") { manager.pause(records(for: selectedIDs)) }
-                        Button("Resume") { manager.resume(records(for: selectedIDs)) }
-                        Button("Stop", role: .destructive) { manager.cancel(records(for: selectedIDs)) }
-                        Button("Remove", role: .destructive) {
-                            manager.remove(records(for: selectedIDs))
-                            selectedIDs.removeAll()
-                            selected = nil
+                        Text("\(selectedIDs.count)")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .help("\(selectedIDs.count) selected")
+                        Menu {
+                            Button("Pause") { manager.pause(records(for: selectedIDs)) }
+                            Button("Resume") { manager.resume(records(for: selectedIDs)) }
+                            Button("Stop", role: .destructive) { manager.cancel(records(for: selectedIDs)) }
+                            Divider()
+                            Button("Remove", role: .destructive) {
+                                manager.remove(records(for: selectedIDs))
+                                selectedIDs.removeAll()
+                                selected = nil
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
                         }
+                        .menuStyle(.borderlessButton)
+                        .help("Bulk actions for selected downloads")
                     }
                     Spacer()
-                    TextField("Search", text: $search).textFieldStyle(.roundedBorder).frame(width: 190)
+                    TextField("Search", text: $search)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minWidth: 80, idealWidth: 190, maxWidth: 220)
                 }.padding()
                 List(filtered, selection: $selectedIDs) { record in
                     DownloadRow(record: record, selected: $selected).tag(record.id)
