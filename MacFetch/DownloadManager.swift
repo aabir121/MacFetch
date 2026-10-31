@@ -6,6 +6,7 @@ import AppKit
 @MainActor
 final class DownloadManager: ObservableObject {
     @Published var records: [DownloadRecord] = []
+    @Published var samples: [DownloadSample] = []
     @Published var totalSpeed: Double = 0
     @Published var speedSamples: [Double] = []
     var maxConnections = 8
@@ -18,9 +19,10 @@ final class DownloadManager: ObservableObject {
     private var lastProgressUpdate = Date.distantPast
     var activeCount: Int { jobs.count }
 
-    init(context: ModelContext) { self.context = context; refresh(); resumeRecoverable(); Task { await tick() } }
-    func refresh() {
+    init(context: ModelContext) { self.context = context; refresh(loadSamples: true); resumeRecoverable(); Task { await tick() } }
+    func refresh(loadSamples: Bool = false) {
         let fetched = (try? context.fetch(FetchDescriptor<DownloadRecord>(sortBy: [SortDescriptor(\DownloadRecord.createdAt)]))) ?? []
+        if loadSamples { samples = (try? context.fetch(FetchDescriptor<DownloadSample>(sortBy: [SortDescriptor(\DownloadSample.timestamp)]))) ?? [] }
         var repaired = false
         for record in fetched where record.state == .failed && isCompleteOnDisk(record) {
             record.state = .completed
@@ -41,7 +43,7 @@ final class DownloadManager: ObservableObject {
     func pause(_ records: [DownloadRecord]) { records.filter { $0.state == .downloading }.forEach { pause($0) } }
     func cancel(_ record: DownloadRecord) { jobs[record.id]?.cancel(); jobs[record.id] = nil; record.state = .cancelled; save(); refresh(); startQueued() }
     func cancel(_ records: [DownloadRecord]) { records.filter { $0.state == .downloading || $0.state == .queued || $0.state == .paused }.forEach { cancel($0) } }
-    func retry(_ record: DownloadRecord) { record.state = .queued; record.errorMessage = nil; record.totalBytes = 0; record.downloadedBytes = 0; save(); startQueued() }
+    func retry(_ record: DownloadRecord) { record.state = .queued; record.errorMessage = nil; record.totalBytes = 0; record.downloadedBytes = 0; record.startedAt = nil; record.completedAt = nil; record.peakSpeed = nil; save(); startQueued() }
     func remove(_ record: DownloadRecord) { jobs[record.id]?.cancel(); jobs[record.id] = nil; context.delete(record); save(); refresh(); startQueued() }
     func remove(_ records: [DownloadRecord]) { records.forEach { remove($0) } }
     func open(_ record: DownloadRecord) { NSWorkspace.shared.open(record.destinationURL) }
@@ -51,20 +53,22 @@ final class DownloadManager: ObservableObject {
         while jobs.count < maxConcurrentDownloads, let record = records.first(where: { $0.state == .queued && jobs[$0.id] == nil }) { run(record) }
     }
     private func run(_ record: DownloadRecord) {
-        record.state = .downloading; save(); refresh()
+        record.state = .downloading; record.startedAt = record.startedAt ?? .now; record.completedAt = nil; save(); refresh()
         jobs[record.id] = Task { [weak self] in
             guard let self, let url = record.url else { return }
             do {
                 try await self.engine.download(url: url, destination: record.destinationURL, connections: self.maxConnections, onStarted: { [weak self, weak record] size in await MainActor.run { guard let self, let record else { return }; record.totalBytes = size; self.save(); self.refresh() } }) { [weak self] bytes in Task { @MainActor in self?.record(record, bytes: bytes) } }
-                record.state = .completed; record.downloadedBytes = record.totalBytes
+                record.state = .completed; record.downloadedBytes = record.totalBytes; record.completedAt = .now
             } catch is CancellationError { return }
             catch {
                 if self.isCompleteOnDisk(record) {
                     record.state = .completed
                     record.errorMessage = nil
+                    record.completedAt = .now
                 } else {
                     record.state = .failed
                     record.errorMessage = error.localizedDescription
+                    record.completedAt = .now
                 }
             }
             self.save(); self.jobs[record.id] = nil; self.refresh(); self.startQueued()
@@ -79,5 +83,5 @@ final class DownloadManager: ObservableObject {
         return fileSize.int64Value >= record.totalBytes
     }
     private func resumeRecoverable() { for record in records where record.state == .downloading { record.state = .queued }; startQueued() }
-    private func tick() async { while !Task.isCancelled { try? await Task.sleep(for: .seconds(1)); let now = Date(); let elapsed = now.timeIntervalSince(lastTick); totalSpeed = elapsed > 0 ? Double(records.reduce(0) { $0 + ($1.downloadedBytes - (lastBytes[$1.id] ?? $1.downloadedBytes)) }) / elapsed : 0; speedSamples.append(totalSpeed); if speedSamples.count > 30 { speedSamples.removeFirst() }; for record in records { lastBytes[record.id] = record.downloadedBytes }; lastTick = now; refresh() } }
+    private func tick() async { while !Task.isCancelled { try? await Task.sleep(for: .seconds(1)); let now = Date(); let elapsed = now.timeIntervalSince(lastTick); totalSpeed = elapsed > 0 ? Double(records.reduce(0) { $0 + ($1.downloadedBytes - (lastBytes[$1.id] ?? $1.downloadedBytes)) }) / elapsed : 0; speedSamples.append(totalSpeed); if speedSamples.count > 30 { speedSamples.removeFirst() }; for record in records { let previous = lastBytes[record.id] ?? record.downloadedBytes; let delta = max(0, record.downloadedBytes - previous); if record.state == .downloading { let speed = elapsed > 0 ? Double(delta) / elapsed : 0; record.peakSpeed = max(record.peakSpeed ?? 0, speed); let sample = DownloadSample(recordID: record.id, timestamp: now, downloadedBytes: record.downloadedBytes, speed: speed, state: record.state); context.insert(sample); samples.append(sample) }; lastBytes[record.id] = record.downloadedBytes }; lastTick = now; save(); refresh() } }
 }

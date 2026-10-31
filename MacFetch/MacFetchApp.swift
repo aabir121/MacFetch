@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
     @State private var pendingDownload: PendingDownload?
     @Environment(\.openWindow) private var openWindow
 
-    init() { let schema = Schema([DownloadRecord.self]); let container = try! ModelContainer(for: schema); self.container = container; _manager = StateObject(wrappedValue: DownloadManager(context: container.mainContext)) }
+    init() { let schema = Schema([DownloadRecord.self, DownloadSample.self]); let container = try! ModelContainer(for: schema); self.container = container; _manager = StateObject(wrappedValue: DownloadManager(context: container.mainContext)) }
 
     var body: some Scene {
         WindowGroup("MacFetch", id: "main") {

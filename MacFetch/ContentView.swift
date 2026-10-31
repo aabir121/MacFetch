@@ -5,9 +5,10 @@ import AppKit
 
 struct ContentView: View {
     @EnvironmentObject private var manager: DownloadManager
+    @State private var section = "All"
+    @State private var showingAnalyticsRecord = false
     @State private var selected: DownloadRecord?
     @State private var selectedIDs = Set<UUID>()
-    @State private var filter = "All"
     @State private var showingAdd = false
     @State private var search = ""
     @State private var typeFilter = "All types"
@@ -17,11 +18,25 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(filters, id: \.self, selection: $filter) { item in Label(item, systemImage: icon(item)).tag(item) }
+            List(selection: $section) {
+                Label("Overview", systemImage: "chart.xyaxis.line").tag("Overview")
+                Label("Analytics", systemImage: "chart.bar.xaxis").tag("Analytics")
+                Section("Downloads") {
+                    ForEach(filters, id: \.self) { item in Label(item, systemImage: icon(item)).tag(item) }
+                }
+            }
                 .navigationTitle("MacFetch")
                 .safeAreaInset(edge: .bottom) { VStack(alignment: .leading) { Text("Total speed").font(.caption).foregroundStyle(.secondary); Text(ByteCountFormatter.string(fromByteCount: Int64(manager.totalSpeed), countStyle: .file) + "/s").font(.headline) }.frame(maxWidth: .infinity, alignment: .leading).padding() }
-        } content: {
-            VStack(spacing: 0) {
+        } detail: {
+            if section == "Overview" {
+                AnalyticsDashboardView(onAdd: { showingAdd = true })
+                    .navigationTitle("Overview")
+            } else if section == "Analytics" {
+                AnalyticsWorkspaceView(onOpenRecord: { selected = $0; showingAnalyticsRecord = true }, onExport: exportCSV)
+                    .navigationTitle("Analytics")
+            } else {
+                NavigationSplitView {
+                VStack(spacing: 0) {
                 HStack {
                     Button { showingAdd = true } label: {
                         Image(systemName: "plus")
@@ -98,15 +113,18 @@ struct ContentView: View {
                         }
                     }
                 }.listStyle(.inset)
-            }.navigationTitle(filter)
-        } detail: { if let selected { DetailView(record: selected) } else { ContentUnavailableView("Select a download", systemImage: "arrow.down.circle") } }
+                }.navigationTitle(section)
+                } detail: { if let selected { DetailView(record: selected) } else { ContentUnavailableView("Select a download", systemImage: "arrow.down.circle") } }
+            }
+        }
         .sheet(isPresented: $showingAdd) { AddDownloadView() }
         .onDrop(of: [.url], isTargeted: nil) { providers in for provider in providers { _ = provider.loadObject(ofClass: URL.self) { url, _ in if let url { Task { @MainActor in manager.add(url: url, destinationFolder: Self.downloadsFolder) } } } }; return true }
+        .sheet(isPresented: $showingAnalyticsRecord) { if let selected { DetailView(record: selected).environmentObject(manager).frame(width: 520, height: 520) } }
     }
     private var typeOptions: [String] { Array(Set(manager.records.map(\.fileType))).sorted() }
     private var filtered: [DownloadRecord] {
         let matching = manager.records.filter {
-            (filter == "All" || $0.state.label == filter) &&
+            (section == "All" || $0.state.label == section) &&
             (typeFilter == "All types" || $0.fileType == typeFilter) &&
             (search.isEmpty || $0.fileName.localizedCaseInsensitiveContains(search))
         }
@@ -132,6 +150,16 @@ struct ContentView: View {
     private func records(for ids: Set<UUID>) -> [DownloadRecord] { manager.records.filter { ids.contains($0.id) } }
     private func icon(_ name: String) -> String { ["All":"tray.full", "Downloading":"arrow.down.circle", "Queued":"clock", "Paused":"pause.circle", "Completed":"checkmark.circle", "Failed":"exclamationmark.circle" ][name] ?? "tray" }
     static var downloadsFolder: URL { DownloadPreferences.downloadFolder }
+
+    private func exportCSV(_ csv: String) {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "macfetch-analytics.csv"
+        panel.allowedContentTypes = [.commaSeparatedText]
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            try? csv.data(using: .utf8)?.write(to: url)
+        }
+    }
 }
 
 struct DownloadGroup: Identifiable {

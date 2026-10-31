@@ -12,6 +12,9 @@
 		000000000000000000000052 /* DownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000032 /* DownloadManager.swift */; };
 		000000000000000000000053 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000033 /* ContentView.swift */; };
 		000000000000000000000054 /* MacFetchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000034 /* MacFetchApp.swift */; };
+		000000000000000000000057 /* DownloadAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000037 /* DownloadAnalytics.swift */; };
+		000000000000000000000058 /* AnalyticsDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000038 /* AnalyticsDashboardView.swift */; };
+		000000000000000000000059 /* AnalyticsWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000039 /* AnalyticsWorkspaceView.swift */; };
 		000000000000000000000055 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000035 /* Assets.xcassets */; };
 		000000000000000000000056 /* macfetch-native-host in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000036 /* macfetch-native-host */; };
 /* End PBXBuildFile section */
@@ -24,6 +27,9 @@
 		000000000000000000000034 /* MacFetchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacFetch/MacFetchApp.swift; sourceTree = "<group>"; };
 		000000000000000000000035 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = MacFetch/Assets.xcassets; sourceTree = "<group>"; };
 		000000000000000000000036 /* macfetch-native-host */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = NativeHost/macfetch-native-host; sourceTree = "<group>"; fileEncoding = 4; includeInIndex = 0; };
+		000000000000000000000037 /* DownloadAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacFetch/DownloadAnalytics.swift; sourceTree = "<group>"; };
+		000000000000000000000038 /* AnalyticsDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacFetch/AnalyticsDashboardView.swift; sourceTree = "<group>"; };
+		000000000000000000000039 /* AnalyticsWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacFetch/AnalyticsWorkspaceView.swift; sourceTree = "<group>"; };
 		000000000000000000000040 /* MacFetch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacFetch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -58,6 +64,9 @@
 				000000000000000000000032 /* DownloadManager.swift */,
 				000000000000000000000033 /* ContentView.swift */,
 				000000000000000000000034 /* MacFetchApp.swift */,
+				000000000000000000000037 /* DownloadAnalytics.swift */,
+				000000000000000000000038 /* AnalyticsDashboardView.swift */,
+				000000000000000000000039 /* AnalyticsWorkspaceView.swift */,
 				000000000000000000000035 /* Assets.xcassets */,
 				000000000000000000000036 /* macfetch-native-host */,
 				000000000000000000000003 /* Products */,
@@ -127,6 +136,9 @@
 				000000000000000000000052 /* DownloadManager.swift in Sources */,
 				000000000000000000000053 /* ContentView.swift in Sources */,
 				000000000000000000000054 /* MacFetchApp.swift in Sources */,
+				000000000000000000000057 /* DownloadAnalytics.swift in Sources */,
+				000000000000000000000058 /* AnalyticsDashboardView.swift in Sources */,
+				000000000000000000000059 /* AnalyticsWorkspaceView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

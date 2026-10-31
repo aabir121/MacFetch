@@ -12,6 +12,8 @@ MacFetch is a native macOS download manager with a SwiftUI interface, menu-bar c
 - Configurable confirmation prompt for Chrome-captured downloads.
 - Persistent download location selection with exact browser-provided filenames.
 - Type filtering, time/name sorting, and grouping by type or day.
+- Full-window Overview dashboard with persisted download history, configurable Today/7 days/30 days/custom ranges, Downloads/Data/Speed charts, and average/peak/low speed insights.
+- Linked Analytics workspace with shared filters, period comparisons, outcome and source breakdowns, filtered activity tables, and CSV export.
 - SwiftData persistence and recovery of interrupted downloads.
 - Finder reveal/open actions and drag-and-drop URL support.
 

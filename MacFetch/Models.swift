@@ -34,6 +34,9 @@ final class DownloadRecord {
     var totalBytes: Int64
     var downloadedBytes: Int64
     var createdAt: Date
+    var startedAt: Date?
+    var completedAt: Date?
+    var peakSpeed: Double?
     var errorMessage: String?
 
     init(url: URL, destination: URL, fileName: String? = nil) {
@@ -41,6 +44,7 @@ final class DownloadRecord {
         self.fileName = fileName ?? url.lastPathComponent.nilIfEmpty ?? "download"
         destinationPath = destination.path; stateRaw = DownloadState.queued.rawValue
         totalBytes = 0; downloadedBytes = 0; createdAt = .now
+        startedAt = nil; completedAt = nil; peakSpeed = nil
     }
 
     var url: URL? { URL(string: urlString) }
@@ -50,6 +54,25 @@ final class DownloadRecord {
     var fileType: String {
         let extensionName = URL(fileURLWithPath: fileName).pathExtension
         return extensionName.isEmpty ? "Other" : extensionName.uppercased()
+    }
+}
+
+@Model
+final class DownloadSample {
+    @Attribute(.unique) var id: UUID
+    var recordID: UUID
+    var timestamp: Date
+    var downloadedBytes: Int64
+    var speed: Double
+    var stateRaw: String
+
+    init(recordID: UUID, timestamp: Date = .now, downloadedBytes: Int64, speed: Double, state: DownloadState) {
+        id = UUID()
+        self.recordID = recordID
+        self.timestamp = timestamp
+        self.downloadedBytes = downloadedBytes
+        self.speed = speed
+        stateRaw = state.rawValue
     }
 }
 
