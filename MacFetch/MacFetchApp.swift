@@ -112,6 +112,8 @@ struct MenuBarDownloadsView: View {
             ForEach(activeRecords) { record in
                 VStack(alignment: .leading, spacing: 5) {
                     HStack {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundStyle(.tint)
                         Text(record.fileName)
                             .lineLimit(1)
                         Spacer()
@@ -119,20 +121,37 @@ struct MenuBarDownloadsView: View {
                             .foregroundStyle(.secondary)
                     }
                     ProgressView(value: record.progress)
+                        .progressViewStyle(.linear)
+                        .tint(.accentColor)
+                        .frame(width: 260)
                     HStack {
                         Text("\(Int(record.progress * 100))%")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Spacer()
                         if record.state == .downloading {
-                            Button("Pause") { manager.pause(record) }
+                            Button { manager.pause(record) } label: {
+                                Image(systemName: "pause.circle.fill")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Pause download")
                         } else if record.state == .paused || record.state == .queued {
-                            Button("Resume") { manager.start(record) }
+                            Button { manager.start(record) } label: {
+                                Image(systemName: "play.circle.fill")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Resume download")
                         }
-                        Button("Stop", role: .destructive) { manager.cancel(record) }
+                        Button(role: .destructive) { manager.cancel(record) } label: {
+                            Image(systemName: "stop.circle.fill")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Stop download")
                     }
                 }
-                .padding(.vertical, 3)
+                .padding(9)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
             }
         }
 
