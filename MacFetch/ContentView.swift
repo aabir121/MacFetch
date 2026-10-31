@@ -35,7 +35,7 @@ struct ContentView: View {
                 AnalyticsWorkspaceView(onOpenRecord: { selected = $0; showingAnalyticsRecord = true }, onExport: exportCSV)
                     .navigationTitle("Analytics")
             } else {
-                NavigationSplitView {
+                HStack(spacing: 0) {
                 VStack(spacing: 0) {
                 HStack {
                     Button { showingAdd = true } label: {
@@ -113,8 +113,18 @@ struct ContentView: View {
                         }
                     }
                 }.listStyle(.inset)
-                }.navigationTitle(section)
-                } detail: { if let selected { DetailView(record: selected) } else { ContentUnavailableView("Select a download", systemImage: "arrow.down.circle") } }
+                }
+                .frame(minWidth: 420)
+                Divider()
+                if let selected {
+                    DetailView(record: selected)
+                        .frame(minWidth: 300)
+                } else {
+                    ContentUnavailableView("Select a download", systemImage: "arrow.down.circle")
+                        .frame(minWidth: 300)
+                }
+                }
+                .navigationTitle(section)
             }
         }
         .sheet(isPresented: $showingAdd) { AddDownloadView() }
